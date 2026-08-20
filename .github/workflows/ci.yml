@@ -18,4 +18,7 @@ jobs:
       - run: pnpm install --no-frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm test
-      - run: pnpm --filter @money-os/navigator build
+      - run: pnpm install --no-frozen-lockfile
+        working-directory: apps/navigator
+      - run: pnpm build
+        working-directory: apps/navigator

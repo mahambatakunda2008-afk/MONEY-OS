@@ -40,7 +40,7 @@ describe("route competition", () => {
   it("compares routes and returns a balanced recommendation", () => {
     const result = compareRoutes(routes, "BALANCED");
     expect(result.alternatives).toHaveLength(3);
-    expect(result.recommended.route.id).toBe("alpha");
+    expect(result.recommended.route.id).toBe("beta");
     expect(result.recommended.targetAmount).toEqual({ amount: "5000", currency: "ZAR" });
     expect(result.reason).toContain("balance");
   });

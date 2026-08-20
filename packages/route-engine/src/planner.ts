@@ -1,5 +1,11 @@
 import type { MoneyAction, MoneyIntent, MoneyPlan, MoneyPlanKind, MoneyPlanStep, Route } from "../../money-core/src/index";
 import { recommend, type RoutePriority } from "./index";
+import { assessRouteRisk, isRouteExecutable, type RouteRisk } from "./route-risk";
+
+export interface PlannedRouteRisk {
+  routeId: string;
+  risk: RouteRisk;
+}
 
 export function createMoneyPlan(
   intent: MoneyIntent,
@@ -7,7 +13,31 @@ export function createMoneyPlan(
   priority: RoutePriority = "BALANCED",
 ): MoneyPlan {
   if (routes.length === 0) throw new Error("Cannot create a route plan without routes");
-  const recommendedRoute = recommend(routes, priority, intent.preferences);
+
+  const assessed = routes.map((route) => ({ route, risk: assessRouteRisk(route) }));
+  const executable = assessed.filter(({ risk }) => isRouteExecutable(risk)).map(({ route }) => route);
+
+  if (executable.length === 0) {
+    return {
+      id: `plan_${intent.id}`,
+      intentId: intent.id,
+      kind: "ROUTE",
+      status: "REQUIRES_ACTION",
+      alternatives: [],
+      steps: [],
+      explanation: "No route can currently be executed safely. Every available quote is blocked by the route risk screen.",
+      createdAt: new Date().toISOString(),
+    };
+  }
+
+  const recommendedRoute = recommend(executable, priority, intent.preferences);
+  const recommendedAssessment = assessed.find(({ route }) => route.id === recommendedRoute.id);
+  if (!recommendedAssessment) throw new Error("Recommended route risk assessment is missing");
+
+  const blocked = assessed.filter(({ risk }) => !isRouteExecutable(risk));
+  const blockedText = blocked.length > 0
+    ? ` ${blocked.length} route${blocked.length === 1 ? " is" : "s are"} excluded by the risk screen.`
+    : "";
 
   return {
     id: `plan_${intent.id}`,
@@ -15,18 +45,18 @@ export function createMoneyPlan(
     kind: "ROUTE",
     status: "READY",
     recommendedRoute,
-    alternatives: routes.filter((route) => route.id !== recommendedRoute.id),
+    alternatives: executable.filter((route) => route.id !== recommendedRoute.id),
     quote: recommendedRoute.quote,
     steps: [
       {
         id: `step_${intent.id}_route`,
         action: intent.action,
-        description: `Use ${recommendedRoute.name} to complete the requested money movement.`,
+        description: `Use ${recommendedRoute.name} to complete the requested money movement. Risk: ${recommendedAssessment.risk.level}.`,
         amount: recommendedRoute.quote.source,
         state: "PENDING",
       },
     ],
-    explanation: buildExplanation(recommendedRoute, priority),
+    explanation: `${buildExplanation(recommendedRoute, priority)}${blockedText}`,
     createdAt: new Date().toISOString(),
   };
 }
@@ -67,31 +97,21 @@ function withOptionalAmount(step: Omit<MoneyPlanStep, "amount">, amount?: MoneyP
 
 function stepsForAction(intent: MoneyIntent): MoneyPlan["steps"] {
   if (intent.action === "HOLD") {
-    return [
-      withOptionalAmount(
-        {
-          id: `step_${intent.id}_hold`,
-          action: "HOLD",
-          description: `Reserve funds for ${intent.hold?.purpose ?? "the requested purpose"}.`,
-          state: "RESERVED",
-        },
-        intent.amount,
-      ),
-    ];
+    return [withOptionalAmount({
+      id: `step_${intent.id}_hold`,
+      action: "HOLD",
+      description: `Reserve funds for ${intent.hold?.purpose ?? "the requested purpose"}.`,
+      state: "RESERVED",
+    }, intent.amount)];
   }
 
   if (intent.action === "SCHEDULE") {
-    return [
-      withOptionalAmount(
-        {
-          id: `step_${intent.id}_schedule`,
-          action: "SCHEDULE",
-          description: `Schedule the transfer ${intent.schedule?.frequency.toLowerCase() ?? "recurringly"}.`,
-          state: "PENDING",
-        },
-        intent.amount,
-      ),
-    ];
+    return [withOptionalAmount({
+      id: `step_${intent.id}_schedule`,
+      action: "SCHEDULE",
+      description: `Schedule the transfer ${intent.schedule?.frequency.toLowerCase() ?? "recurringly"}.`,
+      state: "PENDING",
+    }, intent.amount)];
   }
 
   if (intent.action === "SPLIT") {
@@ -104,17 +124,12 @@ function stepsForAction(intent: MoneyIntent): MoneyPlan["steps"] {
     }));
   }
 
-  return [
-    withOptionalAmount(
-      {
-        id: `step_${intent.id}_action`,
-        action: intent.action,
-        description: `Prepare the requested ${intent.action.toLowerCase()} operation.`,
-        state: "PENDING",
-      },
-      intent.amount ?? intent.targetAmount,
-    ),
-  ];
+  return [withOptionalAmount({
+    id: `step_${intent.id}_action`,
+    action: intent.action,
+    description: `Prepare the requested ${intent.action.toLowerCase()} operation.`,
+    state: "PENDING",
+  }, intent.amount ?? intent.targetAmount)];
 }
 
 function explainActionPlan(intent: MoneyIntent): string {

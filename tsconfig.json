@@ -9,16 +9,8 @@
     "skipLibCheck": true,
     "declaration": true,
     "composite": true,
+    "rootDir": ".",
     "outDir": "dist"
   },
-  "files": [],
-  "references": [
-    { "path": "packages/money-core" },
-    { "path": "packages/fx-engine" },
-    { "path": "packages/fee-engine" },
-    { "path": "packages/money-graph" },
-    { "path": "packages/route-engine" },
-    { "path": "packages/intent-engine" },
-    { "path": "packages/simulator" }
-  ]
+  "include": ["packages/**/*.ts"]
 }

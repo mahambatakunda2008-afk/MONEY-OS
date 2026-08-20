@@ -1,13 +1,14 @@
 import type { MoneyAmount } from "./index";
 import { applyExecutionOutcome, ExecutionEngine, reserveForExecution, type ExecutionRecord } from "./execution";
+import type { PaymentOperation } from "./providers";
 import type { BalanceBook } from "./balances";
 import { createTransaction, transitionTransaction, type TransactionRecord } from "./transaction";
 import type { PaymentRail } from "./rails";
 
-export interface PaymentCoordinatorRequest { transactionId: string; operation: "SEND" | "RECEIVE" | "PAY" | "REFUND" | "EXCHANGE"; accountId: string; amount: MoneyAmount; rail: PaymentRail; reference: string; idempotencyKey: string; }
+export interface PaymentCoordinatorRequest { transactionId: string; operation: PaymentOperation; accountId: string; amount: MoneyAmount; rail: PaymentRail; reference: string; idempotencyKey: string; }
 export interface PaymentCoordinatorResult { transaction: TransactionRecord; execution: ExecutionRecord; balances: BalanceBook; }
 
-/** Coordinates domain state. Persistence/DB transactions should wrap this flow before production use. */
+/** Coordinates payment-domain state. Persistence/DB transactions should wrap this flow before production use. */
 export async function coordinatePayment(request: PaymentCoordinatorRequest, balanceBook: BalanceBook, executionEngine: ExecutionEngine, now = new Date()): Promise<PaymentCoordinatorResult> {
   const transaction = createTransaction({ id: request.transactionId, idempotencyKey: request.idempotencyKey, operation: request.operation, status: "PENDING", entries: [
     { accountId: request.accountId, type: "DEBIT", amount: request.amount },

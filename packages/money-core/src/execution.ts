@@ -18,7 +18,12 @@ export class ExecutionEngine {
     this.records.set(request.idempotencyKey, pending);
     try {
       const result: ProviderResult = validateProviderResult(await this.providers.get(request.rail.provider).execute(request));
-      const record: ExecutionRecord = { ...pending, status: result.status, providerReference: result.providerReference, message: result.message };
+      const record: ExecutionRecord = {
+        ...pending,
+        status: result.status,
+        ...(result.providerReference === undefined ? {} : { providerReference: result.providerReference }),
+        ...(result.message === undefined ? {} : { message: result.message }),
+      };
       this.records.set(request.idempotencyKey, record);
       return record;
     } catch (error) {

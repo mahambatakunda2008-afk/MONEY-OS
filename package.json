@@ -1,8 +1,9 @@
 {
-  "name": "money-os",
+  "name": "shadecode-money",
   "private": true,
   "version": "0.1.0",
   "packageManager": "pnpm@10.15.0",
+  "description": "Shadecode Money: your money, everywhere.",
   "scripts": {
     "build": "tsc -b",
     "test": "vitest run",

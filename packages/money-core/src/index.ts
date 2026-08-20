@@ -29,6 +29,8 @@ export type PlanStatus =
   | "COMPLETED"
   | "FAILED";
 
+export type ScheduleFrequency = "WEEKLY" | "BIWEEKLY" | "MONTHLY" | "QUARTERLY" | "CUSTOM";
+
 export interface MoneyAmount {
   amount: string;
   currency: string;
@@ -61,6 +63,23 @@ export interface MoneyConstraints {
   allowedProviders?: string[];
 }
 
+export interface HoldInstruction {
+  purpose: string;
+  releaseAt?: string;
+}
+
+export interface ScheduleInstruction {
+  frequency: ScheduleFrequency;
+  nextRunAt: string;
+  timezone?: string;
+  endAt?: string;
+}
+
+export interface SplitInstruction {
+  recipientId: string;
+  amount: MoneyAmount;
+}
+
 export interface MoneyIntent {
   id: string;
   action: MoneyAction;
@@ -72,6 +91,9 @@ export interface MoneyIntent {
   deadline?: string;
   preferences?: MoneyPreferences;
   constraints?: MoneyConstraints;
+  hold?: HoldInstruction;
+  schedule?: ScheduleInstruction;
+  splits?: SplitInstruction[];
 }
 
 export interface FeeBreakdown {
@@ -108,9 +130,9 @@ export interface MoneyPlan {
   id: string;
   intentId: string;
   status: PlanStatus;
-  recommendedRoute: Route;
+  recommendedRoute?: Route;
   alternatives: Route[];
-  quote: MoneyQuote;
+  quote?: MoneyQuote;
   explanation: string;
   createdAt: string;
 }

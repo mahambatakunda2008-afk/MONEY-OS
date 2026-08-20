@@ -7,6 +7,7 @@ function normalize(value: number, min: number, max: number): number {
 }
 
 export function scoreRoute(route: Route, routes: Route[], preferences?: MoneyPreferences): number {
+  if (routes.length === 0) throw new Error("Cannot score against an empty route set");
   const costs = routes.map((r) => Number(r.cost.amount));
   const delays = routes.map((r) => r.estimatedArrivalMinutes);
   const reliabilities = routes.map((r) => r.reliabilityScore);
@@ -29,11 +30,12 @@ export function rankRoutes(routes: Route[], preferences?: MoneyPreferences): Rou
 export function recommend(routes: Route[], priority: RoutePriority = "BALANCED", preferences?: MoneyPreferences): Route {
   if (routes.length === 0) throw new Error("Cannot recommend from an empty route set");
 
-  const sorted = [...routes];
+  const sorted = priority === "BALANCED" ? rankRoutes(routes, preferences) : [...routes];
   if (priority === "CHEAPEST") sorted.sort((a, b) => Number(a.cost.amount) - Number(b.cost.amount));
   else if (priority === "FASTEST") sorted.sort((a, b) => a.estimatedArrivalMinutes - b.estimatedArrivalMinutes);
   else if (priority === "MOST_RELIABLE") sorted.sort((a, b) => b.reliabilityScore - a.reliabilityScore);
-  else return rankRoutes(sorted, preferences)[0];
 
-  return sorted[0];
+  const recommendation = sorted[0];
+  if (!recommendation) throw new Error("Route recommendation unexpectedly empty");
+  return recommendation;
 }

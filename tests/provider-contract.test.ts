@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
 import { executeInternalSettlement } from "../packages/simulator/src/internal-provider";
+import { canonicalizeJson } from "../packages/simulator/src/canonical-json";
 
 describe("provider event contract", () => {
+  it("canonicalizes equivalent JSON objects identically", () => {
+    expect(canonicalizeJson({ b: 2, a: 1, nested: { z: true, y: "x" } })).toBe(
+      canonicalizeJson({ nested: { y: "x", z: true }, a: 1, b: 2 }),
+    );
+  });
+
   it("produces a stable payload hash for webhook ingestion", () => {
     const result = executeInternalSettlement(
       "contract-1",
@@ -34,7 +41,7 @@ describe("provider event contract", () => {
     );
     const event = result.events.at(-1);
     expect(event).toBeDefined();
-    const canonical = JSON.stringify(event?.payload);
+    const canonical = canonicalizeJson(event?.payload);
     expect(createHash("sha256").update(canonical).digest("hex")).toHaveLength(64);
     expect(event?.providerId).toBe("INTERNAL");
     expect(event?.providerReference).toBe("internal_contract-1");

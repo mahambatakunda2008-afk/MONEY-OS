@@ -16,36 +16,48 @@ export interface RecipientQuoteResult {
   quote: ReturnType<typeof buildQuote>;
 }
 
-/** Calculates the source amount required for a recipient to receive at least the exact target amount. */
+/** Calculates the source amount required for a recipient to receive at least the target amount. */
 export function buildRecipientQuote(input: RecipientQuoteInput): RecipientQuoteResult {
+  const sourceCurrency = input.sourceCurrency.toUpperCase();
+  const destinationCurrency = (input.destinationCurrency ?? input.target.currency).toUpperCase();
+
   assertDecimal(input.target.amount);
   assertDecimal(input.fees.total.amount);
   assertDecimal(input.rate);
   if (input.target.amount === "0") throw new Error("Recipient target amount must be greater than zero");
   if (input.rate === "0") throw new Error("Exchange rate must be greater than zero");
-  if (input.fees.total.currency.toUpperCase() !== input.sourceCurrency.toUpperCase()) {
+  if (input.target.currency.toUpperCase() !== destinationCurrency) {
+    throw new Error("Recipient target currency must match destination currency");
+  }
+  if (input.fees.total.currency.toUpperCase() !== sourceCurrency) {
     throw new Error("Recipient quote fees must use the source currency");
   }
-  if (input.maxSource && input.maxSource.currency.toUpperCase() !== input.sourceCurrency.toUpperCase()) {
+  if (input.maxSource && input.maxSource.currency.toUpperCase() !== sourceCurrency) {
     throw new Error("Maximum source amount must use the source currency");
   }
 
   const requiredNetSource = divideDecimalCeil(input.target.amount, input.rate);
   const grossSource = addDecimal(requiredNetSource, input.fees.total.amount);
-  const source: MoneyAmount = { amount: grossSource, currency: input.sourceCurrency.toUpperCase() };
+  const source: MoneyAmount = { amount: grossSource, currency: sourceCurrency };
 
   if (input.maxSource && compareDecimal(source.amount, input.maxSource.amount) > 0) {
     throw new Error(`Required source amount exceeds maximum: ${source.amount} ${source.currency}`);
   }
 
   const quote = buildQuote({
-    ...input,
+    id: input.id,
     source,
-    destinationCurrency: input.destinationCurrency ?? input.target.currency,
+    destinationCurrency,
+    rate: input.rate,
+    fees: input.fees,
+    providerId: input.providerId,
+    routeId: input.routeId,
+    estimatedArrivalMinutes: input.estimatedArrivalMinutes,
+    expiresAt: input.expiresAt,
   });
 
   if (compareDecimal(quote.destination.amount, input.target.amount) < 0) {
-    throw new Error(`Quote cannot satisfy exact recipient target: ${quote.destination.amount} < ${input.target.amount}`);
+    throw new Error(`Quote cannot satisfy recipient target: ${quote.destination.amount} < ${input.target.amount}`);
   }
 
   return { source, target: input.target, fee: input.fees.total, quote };

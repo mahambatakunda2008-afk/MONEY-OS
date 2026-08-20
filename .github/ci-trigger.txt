@@ -1,0 +1,1 @@
+CI trigger marker. This file intentionally exists to trigger verification on main after CI configuration and typecheck fixes.

@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "composite": true,
+    "outDir": "dist"
+  },
+  "files": [],
+  "references": [
+    { "path": "packages/money-core" },
+    { "path": "packages/fx-engine" },
+    { "path": "packages/fee-engine" },
+    { "path": "packages/money-graph" },
+    { "path": "packages/route-engine" },
+    { "path": "packages/intent-engine" },
+    { "path": "packages/simulator" }
+  ]
+}

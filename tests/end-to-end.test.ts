@@ -38,9 +38,13 @@ describe("Money Navigator v0.1", () => {
     const plan = createMoneyPlan(intent, routes, "BALANCED");
 
     expect(plan.status).toBe("READY");
+    expect(plan.kind).toBe("ROUTE");
     expect(plan.alternatives).toHaveLength(2);
     expect(plan.explanation).toContain("recommended");
+    expect(plan.recommendedRoute).toBeDefined();
+    expect(plan.quote).toBeDefined();
 
+    if (!plan.recommendedRoute || !plan.quote) throw new Error("Route plan must contain a route and quote");
     const execution = simulateExecution("exec-e2e", plan.recommendedRoute, plan.quote.source);
     expect(execution.state).toBe("SETTLED");
     expect(execution.events).toHaveLength(4);

@@ -130,9 +130,9 @@ export interface MoneyPlan {
   id: string;
   intentId: string;
   status: PlanStatus;
-  recommendedRoute?: Route;
+  recommendedRoute: Route;
   alternatives: Route[];
-  quote?: MoneyQuote;
+  quote: MoneyQuote;
   explanation: string;
   createdAt: string;
 }

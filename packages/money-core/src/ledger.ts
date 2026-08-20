@@ -31,7 +31,6 @@ function toMinorUnits(amount: string, minorUnit = 2): bigint {
   return BigInt(whole) * 10n ** BigInt(minorUnit) + BigInt(fraction.padEnd(minorUnit, "0"));
 }
 
-/** A balanced accounting transaction must balance debits and credits per currency. */
 export function assertBalanced(entries: readonly LedgerEntry[], minorUnit = 2): void {
   const totals = new Map<string, bigint>();
   for (const entry of entries) {
@@ -53,22 +52,8 @@ export function createLedgerTransaction(input: LedgerTransaction): LedgerTransac
 
 export function reverseLedgerTransaction(original: LedgerTransaction, reversalId: string, now = new Date()): LedgerTransaction {
   if (original.reversedTransactionId) throw new Error("Ledger transaction has already been reversed");
-  const entries: LedgerEntry[] = original.entries.map((entry, index) => ({
-    ...entry,
-    id: `${reversalId}:entry:${index + 1}`,
-    transactionId: reversalId,
-    type: reverseEntryType(entry.type),
-    createdAt: now.toISOString(),
-  }));
-  return createLedgerTransaction({
-    id: reversalId,
-    executionId: original.executionId,
-    idempotencyKey: `${original.idempotencyKey}:reversal`,
-    description: `Reversal of ${original.id}`,
-    entries,
-    createdAt: now.toISOString(),
-    reversedTransactionId: original.id,
-  });
+  const entries: LedgerEntry[] = original.entries.map((entry, index) => ({ ...entry, id: `${reversalId}:entry:${index + 1}`, transactionId: reversalId, type: reverseEntryType(entry.type), createdAt: now.toISOString() }));
+  return createLedgerTransaction({ id: reversalId, executionId: original.executionId, idempotencyKey: `${original.idempotencyKey}:reversal`, description: `Reversal of ${original.id}`, entries, createdAt: now.toISOString(), reversedTransactionId: original.id });
 }
 
 function reverseEntryType(type: LedgerEntryType): LedgerEntryType {

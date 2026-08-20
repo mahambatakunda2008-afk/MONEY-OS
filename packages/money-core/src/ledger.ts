@@ -30,14 +30,16 @@ function toMinorUnits(amount: string, minorUnit = 2): bigint {
 }
 
 /**
- * A balanced transaction must have equal debit and credit totals per currency.
- * HOLD/RELEASE entries are deliberately allowed as separate semantic events;
- * the ledger does not silently mutate balances.
+ * A balanced accounting transaction must have equal debit and credit totals
+ * per currency. HOLD and RELEASE are reservation events, not accounting
+ * movements, so they intentionally do not affect the balance assertion.
  */
 export function assertBalanced(entries: readonly LedgerEntry[], minorUnit = 2): void {
   const totals = new Map<string, bigint>();
 
   for (const entry of entries) {
+    if (entry.type === "HOLD" || entry.type === "RELEASE") continue;
+
     const units = toMinorUnits(entry.amount.amount, minorUnit);
     const signed = entry.type === "DEBIT" || entry.type === "FEE" ? -units : units;
     totals.set(entry.amount.currency, (totals.get(entry.amount.currency) ?? 0n) + signed);

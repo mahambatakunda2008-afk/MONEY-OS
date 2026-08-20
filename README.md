@@ -43,3 +43,7 @@ AI may interpret natural-language requests and explain system decisions, but it 
 8. Choose the cheapest route.
 9. Choose the fastest route.
 10. Recover from a simulated provider failure.
+
+## Development
+
+Normal Money OS work ships directly to `main`. GitHub Actions is the verification gate. Pull requests are reserved for changes that genuinely need separate review.

@@ -1,77 +1,14 @@
 import { addDecimal, assertDecimal, compareDecimal, subtractDecimal } from "./decimal";
 import type { MoneyAmount } from "./index";
 
-export interface CurrencyBalance {
-  currency: string;
-  available: string;
-  held: string;
-  pending: string;
-  committed: string;
-}
-
+export interface CurrencyBalance { currency: string; available: string; held: string; pending: string; committed: string; }
 export type BalanceBook = Readonly<Record<string, CurrencyBalance>>;
-
-export function emptyBalance(currency: string): CurrencyBalance {
-  return { currency: currency.toUpperCase(), available: "0", held: "0", pending: "0", committed: "0" };
-}
-
-export function getBalance(book: BalanceBook, currency: string): CurrencyBalance {
-  return book[currency.toUpperCase()] ?? emptyBalance(currency);
-}
-
-export function credit(book: BalanceBook, money: MoneyAmount): BalanceBook {
-  assertDecimal(money.amount);
-  const currency = money.currency.toUpperCase();
-  const current = getBalance(book, currency);
-  return {
-    ...book,
-    [currency]: { ...current, available: addDecimal(current.available, money.amount) },
-  };
-}
-
-export function debit(book: BalanceBook, money: MoneyAmount): BalanceBook {
-  assertDecimal(money.amount);
-  const currency = money.currency.toUpperCase();
-  const current = getBalance(book, currency);
-  if (compareDecimal(current.available, money.amount) < 0) {
-    throw new Error(`Insufficient available ${currency} balance`);
-  }
-  return {
-    ...book,
-    [currency]: { ...current, available: subtractDecimal(current.available, money.amount) },
-  };
-}
-
-export function hold(book: BalanceBook, money: MoneyAmount): BalanceBook {
-  assertDecimal(money.amount);
-  const currency = money.currency.toUpperCase();
-  const current = getBalance(book, currency);
-  if (compareDecimal(current.available, money.amount) < 0) {
-    throw new Error(`Insufficient available ${currency} balance for hold`);
-  }
-  return {
-    ...book,
-    [currency]: {
-      ...current,
-      available: subtractDecimal(current.available, money.amount),
-      held: addDecimal(current.held, money.amount),
-    },
-  };
-}
-
-export function releaseHold(book: BalanceBook, money: MoneyAmount): BalanceBook {
-  assertDecimal(money.amount);
-  const currency = money.currency.toUpperCase();
-  const current = getBalance(book, currency);
-  if (compareDecimal(current.held, money.amount) < 0) {
-    throw new Error(`Insufficient held ${currency} balance for release`);
-  }
-  return {
-    ...book,
-    [currency]: {
-      ...current,
-      available: addDecimal(current.available, money.amount),
-      held: subtractDecimal(current.held, money.amount),
-    },
-  };
-}
+export function emptyBalance(currency: string): CurrencyBalance { return { currency: currency.toUpperCase(), available: "0", held: "0", pending: "0", committed: "0" }; }
+export function getBalance(book: BalanceBook, currency: string): CurrencyBalance { return book[currency.toUpperCase()] ?? emptyBalance(currency); }
+export function credit(book: BalanceBook, money: MoneyAmount): BalanceBook { assertDecimal(money.amount); const c=money.currency.toUpperCase(), cur=getBalance(book,c); return {...book,[c]:{...cur,available:addDecimal(cur.available,money.amount)}}; }
+export function debit(book: BalanceBook, money: MoneyAmount): BalanceBook { assertDecimal(money.amount); const c=money.currency.toUpperCase(), cur=getBalance(book,c); if(compareDecimal(cur.available,money.amount)<0) throw new Error(`Insufficient available ${c} balance`); return {...book,[c]:{...cur,available:subtractDecimal(cur.available,money.amount)}}; }
+export function hold(book: BalanceBook, money: MoneyAmount): BalanceBook { assertDecimal(money.amount); const c=money.currency.toUpperCase(), cur=getBalance(book,c); if(compareDecimal(cur.available,money.amount)<0) throw new Error(`Insufficient available ${c} balance for hold`); return {...book,[c]:{...cur,available:subtractDecimal(cur.available,money.amount),held:addDecimal(cur.held,money.amount)}}; }
+export function releaseHold(book: BalanceBook, money: MoneyAmount): BalanceBook { assertDecimal(money.amount); const c=money.currency.toUpperCase(), cur=getBalance(book,c); if(compareDecimal(cur.held,money.amount)<0) throw new Error(`Insufficient held ${c} balance for release`); return {...book,[c]:{...cur,available:addDecimal(cur.available,money.amount),held:subtractDecimal(cur.held,money.amount)}}; }
+export function commitHold(book: BalanceBook, money: MoneyAmount): BalanceBook { assertDecimal(money.amount); const c=money.currency.toUpperCase(), cur=getBalance(book,c); if(compareDecimal(cur.held,money.amount)<0) throw new Error(`Insufficient held ${c} balance for commit`); return {...book,[c]:{...cur,held:subtractDecimal(cur.held,money.amount),committed:addDecimal(cur.committed,money.amount)}}; }
+export function settleCommitted(book: BalanceBook, money: MoneyAmount): BalanceBook { assertDecimal(money.amount); const c=money.currency.toUpperCase(), cur=getBalance(book,c); if(compareDecimal(cur.committed,money.amount)<0) throw new Error(`Insufficient committed ${c} balance for settlement`); return {...book,[c]:{...cur,committed:subtractDecimal(cur.committed,money.amount)}}; }
+export function totalBalance(book: BalanceBook, currency: string): string { const cur=getBalance(book,currency); return addDecimal(addDecimal(cur.available,cur.held),addDecimal(cur.pending,cur.committed)); }

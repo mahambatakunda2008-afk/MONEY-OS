@@ -1,9 +1,9 @@
-import { addDecimal, assertDecimal, compareDecimal, subtractDecimal } from "../../money-core/src/decimal";
-import type { FeeBreakdown, MoneyAmount } from "../../money-core/src/index";
-import { convert } from "../../fx-engine/src/index";
+import { addDecimal, assertDecimal, compareDecimal } from "../../money-core/src/decimal";
+import type { MoneyAmount } from "../../money-core/src/index";
 import { buildQuote, type QuoteInput } from "./index";
 
 export interface RecipientQuoteInput extends Omit<QuoteInput, "source" | "destinationCurrency"> {
+  sourceCurrency: string;
   target: MoneyAmount;
   destinationCurrency?: string;
   maxSource?: MoneyAmount;
@@ -16,22 +16,22 @@ export interface RecipientQuoteResult {
   quote: ReturnType<typeof buildQuote>;
 }
 
-/**
- * Calculates the source amount required for a recipient to receive an exact
- * target amount. Fees are charged in source currency.
- */
+/** Calculates the source amount required for a recipient to receive an exact target amount. */
 export function buildRecipientQuote(input: RecipientQuoteInput): RecipientQuoteResult {
   assertDecimal(input.target.amount);
+  assertDecimal(input.fees.total.amount);
   if (input.target.amount === "0") throw new Error("Recipient target amount must be greater than zero");
   if (input.rate === "0") throw new Error("Exchange rate must be greater than zero");
-  if (input.fees.total.currency.toUpperCase() !== input.target.currency.toUpperCase() && input.fees.total.currency.toUpperCase() !== "") {
-    // Fees are source-currency amounts. The explicit check below handles the
-    // source currency once we solve for it.
+  if (input.fees.total.currency.toUpperCase() !== input.sourceCurrency.toUpperCase()) {
+    throw new Error("Recipient quote fees must use the source currency");
+  }
+  if (input.maxSource && input.maxSource.currency.toUpperCase() !== input.sourceCurrency.toUpperCase()) {
+    throw new Error("Maximum source amount must use the source currency");
   }
 
-  const grossDestinationPerSource = input.rate;
-  const requiredNetSource = invertRate(input.target.amount, grossDestinationPerSource);
-  const source = solveGrossSource(requiredNetSource, input.fees.total.amount);
+  const requiredNetSource = divideDecimal(input.target.amount, input.rate);
+  const grossSource = addDecimal(requiredNetSource, input.fees.total.amount);
+  const source: MoneyAmount = { amount: grossSource, currency: input.sourceCurrency.toUpperCase() };
 
   if (input.maxSource && compareDecimal(source.amount, input.maxSource.amount) > 0) {
     throw new Error(`Required source amount exceeds maximum: ${source.amount} ${source.currency}`);
@@ -50,19 +50,20 @@ export function buildRecipientQuote(input: RecipientQuoteInput): RecipientQuoteR
   return { source, target: input.target, fee: input.fees.total, quote };
 }
 
-function invertRate(destinationAmount: string, rate: string): string {
-  const [ri, rf = ""] = rate.split(".");
-  const [di, df = ""] = destinationAmount.split(".");
-  const numerator = BigInt(di + df) * 10n ** BigInt(Math.max(rf.length, 0));
-  const denominator = BigInt(ri + rf);
-  const scale = df.length + rf.length;
-  const quotient = (numerator * 10n ** 18n) / denominator;
-  const raw = quotient.toString().padStart(19, "0");
-  const value = `${raw.slice(0, -18)}.${raw.slice(-18)}`.replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
-  return value || "0";
-}
+function divideDecimal(numerator: string, denominator: string): string {
+  const [ni = "0", nf = ""] = numerator.split(".");
+  const [di = "0", df = ""] = denominator.split(".");
+  if (di === "0" && df.replace(/0/g, "") === "") throw new Error("Cannot divide by zero");
 
-function solveGrossSource(requiredNetSource: string, fee: string): MoneyAmount {
-  const gross = addDecimal(requiredNetSource, fee);
-  return { amount: gross, currency: "USD" };
+  const precision = 18;
+  const numeratorInteger = BigInt(ni + nf);
+  const denominatorInteger = BigInt(di + df);
+  const scale = precision + df.length - nf.length;
+  const scaledNumerator = numeratorInteger * 10n ** BigInt(Math.max(scale, 0));
+  const scaledDenominator = denominatorInteger * 10n ** BigInt(Math.max(-scale, 0));
+  const quotient = (scaledNumerator * 10n ** BigInt(precision)) / scaledDenominator;
+  const raw = quotient.toString().padStart(precision + 1, "0");
+  return `${raw.slice(0, -precision)}.${raw.slice(-precision)}`
+    .replace(/\.0+$/, "")
+    .replace(/(\.\d*?)0+$/, "$1");
 }

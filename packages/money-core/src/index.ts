@@ -1,3 +1,5 @@
+export * from "./currencies";
+
 export type MoneyAction =
   | "HOLD"
   | "MOVE"

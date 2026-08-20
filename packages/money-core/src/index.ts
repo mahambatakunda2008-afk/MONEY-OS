@@ -31,6 +31,7 @@ export type PlanStatus =
   | "FAILED";
 
 export type ScheduleFrequency = "WEEKLY" | "BIWEEKLY" | "MONTHLY" | "QUARTERLY" | "CUSTOM";
+export type MoneyPlanKind = "ROUTE" | "HOLD" | "SCHEDULE" | "SPLIT" | "GOAL";
 
 export interface MoneyAmount {
   amount: string;
@@ -127,13 +128,23 @@ export interface Route {
   quote: MoneyQuote;
 }
 
+export interface MoneyPlanStep {
+  id: string;
+  action: MoneyAction;
+  description: string;
+  amount?: MoneyAmount;
+  state?: MoneyState;
+}
+
 export interface MoneyPlan {
   id: string;
   intentId: string;
+  kind: MoneyPlanKind;
   status: PlanStatus;
-  recommendedRoute: Route;
+  recommendedRoute?: Route;
   alternatives: Route[];
-  quote: MoneyQuote;
+  quote?: MoneyQuote;
+  steps: MoneyPlanStep[];
   explanation: string;
   createdAt: string;
 }

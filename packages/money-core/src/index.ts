@@ -3,6 +3,7 @@ export * from "./currencies";
 export * from "./ledger";
 export * from "./rails";
 export * from "./providers";
+export * from "./provider-contract";
 export * from "./execution";
 export * from "./transaction";
 export * from "./coordinator";

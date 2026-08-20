@@ -19,7 +19,6 @@
     { "path": "packages/money-graph" },
     { "path": "packages/route-engine" },
     { "path": "packages/intent-engine" },
-    { "path": "packages/simulator" },
-    { "path": "tests" }
+    { "path": "packages/simulator" }
   ]
 }

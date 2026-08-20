@@ -20,8 +20,10 @@ export interface LedgerEntry {
 }
 
 function toMinorUnits(amount: string, minorUnit = 2): bigint {
-  if (!/^\d+(?:\.\d+)?$/.test(amount)) throw new Error(`Invalid non-negative money amount: ${amount}`);
-  const [whole, fraction = ""] = amount.split(".");
+  if (!/^\d+(?:\.\d+)?$/.test(amount)) {
+    throw new Error(`Invalid non-negative money amount: ${amount}`);
+  }
+  const [whole = "0", fraction = ""] = amount.split(".");
   const normalizedFraction = fraction.padEnd(minorUnit, "0").slice(0, minorUnit);
   if (fraction.length > minorUnit && /[1-9]/.test(fraction.slice(minorUnit))) {
     throw new Error(`Too many decimal places for ${minorUnit}-decimal currency: ${amount}`);

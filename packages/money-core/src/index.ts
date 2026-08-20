@@ -7,6 +7,7 @@ export * from "./execution";
 export * from "./transaction";
 export * from "./coordinator";
 export * from "./supabase-money";
+export * from "./fx";
 
 export type MoneyAction =
   | "HOLD" | "MOVE" | "CONVERT" | "SEND" | "RECEIVE" | "PAY" | "SCHEDULE" | "SPLIT";

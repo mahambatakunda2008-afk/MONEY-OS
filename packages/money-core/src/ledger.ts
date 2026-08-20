@@ -23,11 +23,16 @@ function toMinorUnits(amount: string, minorUnit = 2): bigint {
   if (!/^\d+(?:\.\d+)?$/.test(amount)) {
     throw new Error(`Invalid non-negative money amount: ${amount}`);
   }
-  const [whole = "0", fraction = ""] = amount.split(".");
+
+  const parts = amount.split(".");
+  const whole = parts[0] ?? "0";
+  const fraction = parts[1] ?? "";
   const normalizedFraction = fraction.padEnd(minorUnit, "0").slice(0, minorUnit);
+
   if (fraction.length > minorUnit && /[1-9]/.test(fraction.slice(minorUnit))) {
     throw new Error(`Too many decimal places for ${minorUnit}-decimal currency: ${amount}`);
   }
+
   return BigInt(whole) * 10n ** BigInt(minorUnit) + BigInt(normalizedFraction || "0");
 }
 

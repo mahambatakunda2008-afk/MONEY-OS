@@ -1,4 +1,4 @@
-import type { MoneyAction, MoneyIntent, MoneyPlan, MoneyPlanKind, Route } from "../../money-core/src/index";
+import type { MoneyAction, MoneyIntent, MoneyPlan, MoneyPlanKind, MoneyPlanStep, Route } from "../../money-core/src/index";
 import { recommend, type RoutePriority } from "./index";
 
 export function createMoneyPlan(
@@ -61,28 +61,36 @@ function validateActionPlan(intent: MoneyIntent): boolean {
   return Boolean(intent.amount || intent.targetAmount);
 }
 
+function withOptionalAmount(step: Omit<MoneyPlanStep, "amount">, amount?: MoneyPlanStep["amount"]): MoneyPlanStep {
+  return amount === undefined ? step : { ...step, amount };
+}
+
 function stepsForAction(intent: MoneyIntent): MoneyPlan["steps"] {
   if (intent.action === "HOLD") {
     return [
-      {
-        id: `step_${intent.id}_hold`,
-        action: "HOLD",
-        description: `Reserve funds for ${intent.hold?.purpose ?? "the requested purpose"}.`,
-        amount: intent.amount,
-        state: "RESERVED",
-      },
+      withOptionalAmount(
+        {
+          id: `step_${intent.id}_hold`,
+          action: "HOLD",
+          description: `Reserve funds for ${intent.hold?.purpose ?? "the requested purpose"}.`,
+          state: "RESERVED",
+        },
+        intent.amount,
+      ),
     ];
   }
 
   if (intent.action === "SCHEDULE") {
     return [
-      {
-        id: `step_${intent.id}_schedule`,
-        action: "SCHEDULE",
-        description: `Schedule the transfer ${intent.schedule?.frequency.toLowerCase() ?? "recurringly"}.`,
-        amount: intent.amount,
-        state: "PENDING",
-      },
+      withOptionalAmount(
+        {
+          id: `step_${intent.id}_schedule`,
+          action: "SCHEDULE",
+          description: `Schedule the transfer ${intent.schedule?.frequency.toLowerCase() ?? "recurringly"}.`,
+          state: "PENDING",
+        },
+        intent.amount,
+      ),
     ];
   }
 
@@ -97,13 +105,15 @@ function stepsForAction(intent: MoneyIntent): MoneyPlan["steps"] {
   }
 
   return [
-    {
-      id: `step_${intent.id}_action`,
-      action: intent.action,
-      description: `Prepare the requested ${intent.action.toLowerCase()} operation.`,
-      amount: intent.amount ?? intent.targetAmount,
-      state: "PENDING",
-    },
+    withOptionalAmount(
+      {
+        id: `step_${intent.id}_action`,
+        action: intent.action,
+        description: `Prepare the requested ${intent.action.toLowerCase()} operation.`,
+        state: "PENDING",
+      },
+      intent.amount ?? intent.targetAmount,
+    ),
   ];
 }
 

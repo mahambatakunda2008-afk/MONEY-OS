@@ -6,6 +6,7 @@ import { convert } from "../../fx-engine/src/index";
 export interface QuoteInput {
   id: string;
   source: MoneyAmount;
+  destinationCurrency: string;
   rate: string;
   fees: FeeBreakdown;
   providerId: string;
@@ -28,7 +29,7 @@ export function buildQuote(input: QuoteInput): MoneyQuote {
   return {
     id: input.id,
     source: input.source,
-    destination: { amount: destinationAmount, currency: input.destinationCurrency ?? "" },
+    destination: { amount: destinationAmount, currency: input.destinationCurrency.toUpperCase() },
     exchangeRate: input.rate,
     fees: input.fees,
     effectiveRate,

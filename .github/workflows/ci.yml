@@ -2,7 +2,12 @@ name: CI
 
 on:
   push:
+    branches:
+      - main
   pull_request:
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
   verify:
@@ -12,31 +17,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.15.0
-          run_install: false
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
           package-manager-cache: false
 
-      - name: Install root tooling
-        run: pnpm install --ignore-workspace --no-frozen-lockfile
+      - name: Install root dependencies
+        run: npm install --no-audit --no-fund
 
       - name: Typecheck core
-        run: pnpm typecheck
+        run: npm run typecheck
 
       - name: Run tests
-        run: pnpm test
+        run: npm test
 
       - name: Install Navigator dependencies
-        run: pnpm install --ignore-workspace --no-frozen-lockfile
+        run: npm install --no-audit --no-fund
         working-directory: apps/navigator
 
       - name: Build Navigator
-        run: pnpm build
+        run: npm run build
         working-directory: apps/navigator

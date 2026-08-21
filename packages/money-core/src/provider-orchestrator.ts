@@ -72,6 +72,7 @@ export class SettlementAdapterRegistry {
 
 export function assertLiveSettlementConfiguration(input: { providerId: string; rail: PaymentRail; amount: MoneyAmount }): void {
   if (input.providerId !== input.rail.provider) throw new Error("Provider does not match selected rail");
-  if (input.amount.currency.toUpperCase() !== input.rail.currencies.find((currency) => currency.toUpperCase() === input.amount.currency.toUpperCase())) throw new Error("Currency is not supported by selected rail");
-  if (input.rail.status === "UNAVAILABLE") throw new Error("Selected payment rail is unavailable");
+  const currency = input.amount.currency.toUpperCase();
+  if (!input.rail.currencies.some((supported) => supported.toUpperCase() === currency)) throw new Error("Currency is not supported by selected rail");
+  if (input.rail.status !== "ACTIVE") throw new Error("Selected payment rail is not active");
 }

@@ -97,7 +97,7 @@ The route engine considers:
 - risk policy
 - customer/provider eligibility
 
-The initial rail model already supports BANK, CARD, MOBILE_MONEY, QR, CASH and OTHER rail types. citeturn225file0
+The rail model supports BANK, CARD, MOBILE_MONEY, QR, CASH and OTHER rail types.
 
 ## Reconciliation
 

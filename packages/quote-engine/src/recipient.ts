@@ -77,9 +77,7 @@ function divideDecimal(numerator: string, denominator: string): string {
   const scaledNumerator = numeratorInteger * scale;
   const scaledDenominator = denominatorInteger * 10n ** BigInt(nf.length);
   const quotient = scaledNumerator / scaledDenominator;
-  const remainder = scaledNumerator % scaledDenominator;
-  const roundedUp = remainder === 0n ? quotient : quotient + 1n;
-  const raw = roundedUp.toString().padStart(precision + 1, "0");
+  const raw = quotient.toString().padStart(precision + 1, "0");
   const formatted = `${raw.slice(0, -precision)}.${raw.slice(-precision)}`;
   return formatted.replace(/(\.\d*?)0+$/, "$1").replace(/\.0+$/, "");
 }

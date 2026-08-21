@@ -5,9 +5,8 @@ import { createClient } from "../../lib/supabase";
 
 type Profile = { user_id: string; display_name: string | null; phone_e164: string | null; phone_verified_at: string | null; country_code: string | null; email_verified_at: string | null };
 
-function normalizePhone(value: string) {
-  return value.trim().replace(/[\s()-]/g, "");
-}
+function normalizePhone(value: string) { return value.trim().replace(/[\s()-]/g, ""); }
+const E164 = /^\+[1-9][0-9]{6,14}$/;
 
 export default function AccountPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -15,6 +14,7 @@ export default function AccountPage() {
   const [phone, setPhone] = useState("");
   const [country, setCountry] = useState("ZW");
   const [otp, setOtp] = useState("");
+  const [challengeId, setChallengeId] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);
@@ -22,7 +22,7 @@ export default function AccountPage() {
   const [verifying, setVerifying] = useState(false);
 
   useEffect(() => {
-    const load = async () => {
+    void (async () => {
       const supabase = createClient();
       const { data: auth } = await supabase.auth.getUser();
       if (!auth.user) { setMessage("Sign in to manage your account."); setBusy(false); return; }
@@ -30,8 +30,7 @@ export default function AccountPage() {
       if (error) setMessage(error.message);
       if (data) { setProfile(data); setDisplayName(data.display_name ?? ""); setPhone(data.phone_e164 ?? ""); setCountry(data.country_code ?? "ZW"); }
       setBusy(false);
-    };
-    void load();
+    })();
   }, []);
 
   async function save(event: FormEvent<HTMLFormElement>) {
@@ -40,6 +39,7 @@ export default function AccountPage() {
     const { data: auth } = await supabase.auth.getUser();
     if (!auth.user) { setMessage("Sign in first."); setSaving(false); return; }
     const normalized = normalizePhone(phone);
+    if (normalized && !E164.test(normalized)) { setMessage("Enter a valid E.164 phone number, for example +263771234567."); setSaving(false); return; }
     const payload = { user_id: auth.user.id, display_name: displayName.trim() || null, phone_e164: normalized || null, country_code: country.trim().toUpperCase() || null };
     const { data, error } = await supabase.from("money_profiles").upsert(payload, { onConflict: "user_id" }).select("user_id,display_name,phone_e164,phone_verified_at,country_code,email_verified_at").single();
     setSaving(false);
@@ -49,28 +49,31 @@ export default function AccountPage() {
 
   async function sendOtp() {
     const normalized = normalizePhone(phone);
-    if (!/^\+[1-9][0-9]{6,14}$/.test(normalized)) { setMessage("Enter a valid E.164 phone number, for example +263771234567."); return; }
+    if (!E164.test(normalized)) { setMessage("Enter a valid E.164 phone number, for example +263771234567."); return; }
     setVerifying(true); setMessage(null);
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithOtp({ phone: normalized });
+    const { data, error } = await supabase.functions.invoke("money-phone-otp-v1", { body: { action: "start", phoneE164: normalized } });
     setVerifying(false);
-    if (error) { setMessage(error.message); return; }
-    setOtpSent(true); setMessage("Verification code sent. Enter the code you received.");
+    if (error || !data?.challengeId) { setMessage(error?.message ?? data?.error ?? "Verification service unavailable."); return; }
+    setChallengeId(String(data.challengeId)); setOtpSent(true); setMessage("Verification challenge created. Enter the code sent to your phone when SMS delivery is configured.");
   }
 
   async function verifyOtp() {
     const normalized = normalizePhone(phone);
-    if (!/^\d{6}$/.test(otp)) { setMessage("Enter the 6-digit verification code."); return; }
+    if (!challengeId || !E164.test(normalized) || !/^\d{6}$/.test(otp)) { setMessage("Enter the 6-digit verification code."); return; }
     setVerifying(true); setMessage(null);
     const supabase = createClient();
-    const { data: auth, error } = await supabase.auth.verifyOtp({ phone: normalized, token: otp, type: "sms" });
-    if (error || !auth.user) { setVerifying(false); setMessage(error?.message ?? "Phone verification failed."); return; }
-    const { data, error: profileError } = await supabase.from("money_profiles").upsert({ user_id: auth.user.id, phone_e164: normalized, phone_verified_at: new Date().toISOString(), country_code: country.trim().toUpperCase() || null }, { onConflict: "user_id" }).select("user_id,display_name,phone_e164,phone_verified_at,country_code,email_verified_at").single();
+    const { data, error } = await supabase.functions.invoke("money-phone-otp-v1", { body: { action: "verify", phoneE164: normalized, challengeId, otp } });
     setVerifying(false);
-    if (profileError) { setMessage(profileError.message); return; }
-    setProfile(data); setOtpSent(false); setOtp(""); setMessage("Phone verified successfully.");
+    if (error || !data?.verified) { setMessage(error?.message ?? data?.error ?? "Phone verification failed."); return; }
+    const { data: auth } = await supabase.auth.getUser();
+    if (auth.user) {
+      const { data: refreshed } = await supabase.from("money_profiles").select("user_id,display_name,phone_e164,phone_verified_at,country_code,email_verified_at").eq("user_id", auth.user.id).single();
+      if (refreshed) setProfile(refreshed);
+    }
+    setOtpSent(false); setChallengeId(""); setOtp(""); setMessage("Phone verified successfully.");
   }
 
   if (busy) return <main className="shell"><p>Loading account…</p></main>;
-  return <main className="shell"><nav className="nav"><div className="brand"><span className="brand-mark">S</span><span>Shadecode</span></div><a href="/">← Navigator</a></nav><section className="auth-card"><p className="eyebrow">SHADECODE · IDENTITY</p><h1>Your account.</h1><p className="subhead">Keep your identity details current. Phone numbers must be verified before they become trusted money identifiers.</p><form onSubmit={save}><label>Display name<input value={displayName} onChange={e => setDisplayName(e.target.value)} /></label><label>Phone number (E.164)<input inputMode="tel" placeholder="+263771234567" value={phone} onChange={e => setPhone(e.target.value)} /></label><label>Country code<input maxLength={2} placeholder="ZW" value={country} onChange={e => setCountry(e.target.value.toUpperCase())} /></label><button type="submit" disabled={saving}>{saving ? "Saving…" : "Save profile"}</button></form>{profile?.phone_verified_at ? <div className="session-message">✓ Phone verified</div> : <div><div className="session-message">○ Phone not verified</div><button type="button" onClick={sendOtp} disabled={verifying || !phone}>{verifying ? "Sending…" : "Send verification code"}</button>{otpSent && <div><label>6-digit code<input inputMode="numeric" maxLength={6} autoComplete="one-time-code" value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))} /></label><button type="button" onClick={verifyOtp} disabled={verifying || otp.length !== 6}>{verifying ? "Verifying…" : "Verify phone"}</button></div>}</div>}{message && <p className="session-message" role="status">{message}</p>}</section></main>;
+  return <main className="shell"><nav className="nav"><div className="brand"><span className="brand-mark">S</span><span>Shadecode</span></div><a href="/">← Navigator</a></nav><section className="auth-card"><p className="eyebrow">SHADECODE · IDENTITY</p><h1>Your account.</h1><p className="subhead">Keep your identity details current. Phone numbers must be verified before they become trusted money identifiers.</p><form onSubmit={save}><label>Display name<input value={displayName} onChange={e => setDisplayName(e.target.value)} /></label><label>Phone number (E.164)<input inputMode="tel" placeholder="+263771234567" value={phone} onChange={e => setPhone(e.target.value)} /></label><label>Country code<input maxLength={2} placeholder="ZW" value={country} onChange={e => setCountry(e.target.value.toUpperCase())} /></label><button type="submit" disabled={saving}>{saving ? "Saving…" : "Save profile"}</button></form>{profile?.phone_verified_at ? <div className="session-message">✓ Phone verified</div> : <div><div className="session-message">○ Phone not verified</div><button type="button" onClick={sendOtp} disabled={verifying || !phone}>{verifying ? "Creating challenge…" : "Send verification code"}</button>{otpSent && <div><label>6-digit code<input inputMode="numeric" maxLength={6} autoComplete="one-time-code" value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))} /></label><button type="button" onClick={verifyOtp} disabled={verifying || otp.length !== 6}>{verifying ? "Verifying…" : "Verify phone"}</button></div>}</div>}{message && <p className="session-message" role="status">{message}</p>}</section></main>;
 }

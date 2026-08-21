@@ -3,6 +3,7 @@ import { createClient } from "../../../../../lib/supabase";
 import { initiatePaynowFunding } from "../../../../../lib/paynow";
 
 export const dynamic = "force-dynamic";
+const PAYNOW_CURRENCIES = new Set(["USD", "ZWL"]);
 
 export async function POST(request: Request) {
   const supabase = createClient();
@@ -14,16 +15,10 @@ export async function POST(request: Request) {
   const currency = typeof body?.currency === "string" ? body.currency.toUpperCase() : "";
   const accountId = typeof body?.accountId === "string" ? body.accountId : "";
   const reference = typeof body?.reference === "string" && body.reference.trim() ? body.reference.trim() : `SC-FUND-${crypto.randomUUID()}`;
-  if (!Number.isFinite(amount) || amount <= 0 || amount > 100000 || !/^[A-Z]{3}$/.test(currency) || !accountId) return NextResponse.json({ error: "Invalid funding request" }, { status: 400 });
+  if (!Number.isFinite(amount) || amount <= 0 || amount > 100000 || !PAYNOW_CURRENCIES.has(currency) || !accountId) return NextResponse.json({ error: "Paynow funding currently supports USD and ZWL only" }, { status: 400 });
 
   const amountMinor = Math.round(amount * 100);
-  const { data: transaction, error: transactionError } = await supabase.rpc("begin_money_funding", {
-    p_idempotency_key: reference,
-    p_account_id: accountId,
-    p_amount_minor: amountMinor,
-    p_currency: currency,
-    p_provider_id: "paynow",
-  });
+  const { data: transaction, error: transactionError } = await supabase.rpc("begin_money_funding", { p_idempotency_key: reference, p_account_id: accountId, p_amount_minor: amountMinor, p_currency: currency, p_provider_id: "paynow" });
   if (transactionError) return NextResponse.json({ error: transactionError.message }, { status: 400 });
 
   const origin = new URL(request.url).origin;

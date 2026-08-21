@@ -21,7 +21,7 @@ function currencyFromText(text: string): string | undefined {
 }
 
 function amountFromText(text: string): string | undefined {
-  const match = text.match(/(?:[$€£]|\\b(?:USD|EUR|GBP|ZAR|ZWG|ZWD)\\b\\s*)?([0-9]+(?:,[0-9]{3})*(?:\\.[0-9]+)?)/i);
+  const match = text.match(/(?:[$€£]|\b(?:USD|EUR|GBP|ZAR|ZWG|ZWD)\b\s*)?([0-9]+(?:,[0-9]{3})*(?:\.[0-9]+)?)/i);
   return match?.[1]?.replaceAll(",", "");
 }
 
@@ -52,7 +52,7 @@ export function parseIntent(text: string, id = `intent_${Date.now()}`): MoneyInt
   const currency = currencyFromText(trimmed);
   const amount = amountFromText(trimmed);
   const action = detectAction(trimmed);
-  const isTargetAmount = /\b(receive|gets?|arrive|arrives|recipient)\b/i.test(trimmed);
+  const isTargetAmount = /\b(receive|receives|gets?|arrive|arrives|recipient)\b/i.test(trimmed);
 
   const intent: MoneyIntent = { id, action, purpose: trimmed };
 

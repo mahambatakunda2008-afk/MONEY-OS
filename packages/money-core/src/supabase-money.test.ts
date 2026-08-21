@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import { beginMoneyTransaction, commitMoneyTransaction, createMoneyAccount, releaseMoneyTransaction, type SupabaseRpcClient } from "./supabase-money";
 
 type Call = { name: string; args: Record<string, unknown> };
-function fakeClient(result: unknown, calls: Call[]): SupabaseRpcClient { return { async rpc(name, args) { calls.push({ name, args }); return { data: result, error: null }; } }; }
+function fakeClient(result: unknown, calls: Call[]): SupabaseRpcClient {
+  return { async rpc<T>(name, args) { calls.push({ name, args }); return { data: result as T, error: null }; } };
+}
 
 function lastCall(calls: Call[], index: number): Call {
   const call = calls[index];

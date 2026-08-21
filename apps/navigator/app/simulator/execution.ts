@@ -21,5 +21,12 @@ export async function authorizeSimulatorTransfer(accountId: string, amountMinor:
   });
   if (error) throw error;
   if (data?.error) throw new Error(String(data.error));
-  return data as SimulationExecution;
+  if (!data || typeof data !== "object") throw new Error("Invalid simulator response");
+  const payload = data as Record<string, unknown>;
+  return {
+    transaction: payload.transaction,
+    status: typeof payload.status === "string" ? payload.status : "UNKNOWN",
+    fundsHeld: payload.fundsHeld === true,
+    executionStarted: payload.executionStarted === true,
+  };
 }

@@ -1,5 +1,5 @@
 export function assertDecimal(value: string): void {
-  if (!/^\d+(?:\.\d+)?$/.test(value)) {
+  if (!/^\d+(?:\.\d*)?$/.test(value)) {
     throw new Error(`Invalid non-negative decimal: ${value}`);
   }
 }

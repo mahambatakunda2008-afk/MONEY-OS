@@ -36,7 +36,7 @@ export function buildRecipientQuote(input: RecipientQuoteInput): RecipientQuoteR
     throw new Error("Maximum source amount must use the source currency");
   }
 
-  const requiredNetSource = divideDecimalCeil(input.target.amount, input.rate);
+  const requiredNetSource = divideDecimal(input.target.amount, input.rate);
   const grossSource = addDecimal(requiredNetSource, input.fees.total.amount);
   const source: MoneyAmount = { amount: grossSource, currency: sourceCurrency };
 
@@ -63,7 +63,7 @@ export function buildRecipientQuote(input: RecipientQuoteInput): RecipientQuoteR
   return { source, target: input.target, fee: input.fees.total, quote };
 }
 
-function divideDecimalCeil(numerator: string, denominator: string): string {
+function divideDecimal(numerator: string, denominator: string): string {
   assertDecimal(numerator);
   assertDecimal(denominator);
   const [ni = "0", nf = ""] = numerator.split(".");
@@ -75,7 +75,7 @@ function divideDecimalCeil(numerator: string, denominator: string): string {
   const precision = 18;
   const scaledNumerator = numeratorInteger * 10n ** BigInt(df.length + precision);
   const scaledDenominator = denominatorInteger * 10n ** BigInt(nf.length);
-  const quotient = (scaledNumerator + scaledDenominator - 1n) / scaledDenominator;
+  const quotient = scaledNumerator / scaledDenominator;
   const raw = quotient.toString().padStart(precision + 1, "0");
   const formatted = `${raw.slice(0, -precision)}.${raw.slice(-precision)}`;
   return formatted.replace(/(\.\d*?)0+$/, "$1").replace(/\.0+$/, "");

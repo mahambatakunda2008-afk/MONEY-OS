@@ -1,25 +1,39 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "../lib/supabase";
 
 const examples = ["Send enough money so Mum receives $300", "Convert $500 USD to ZAR", "Hold $200 for emergencies", "Pay for my hotel in South Africa"];
-
 type Recipient = { user_id: string; display_name: string | null; country_code: string | null };
-
 function normalizePhone(value: string) { return value.trim().replace(/[\s()-]/g, ""); }
 
 export default function Home() {
+  const router = useRouter();
+  const [ready, setReady] = useState(false);
   const [request, setRequest] = useState("");
   const [phone, setPhone] = useState("");
   const [recipient, setRecipient] = useState<Recipient | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    const supabase = createClient();
+    void supabase.auth.getSession().then(({ data }) => {
+      if (!data.session) router.replace("/auth");
+      else setReady(true);
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) router.replace("/auth");
+      else setReady(true);
+    });
+    return () => listener.subscription.unsubscribe();
+  }, [router]);
+
   async function findRecipient() {
     setBusy(true); setMessage(null); setRecipient(null);
     const normalized = normalizePhone(phone);
-    if (!/^\+[1-9][0-9]{6,14}$/.test(normalized)) { setMessage("Enter a valid phone number in international format, for example +263771234567."); setBusy(false); return; }
+    if (!/^\+[1-9][0-9]{6,14}$/.test(normalized)) { setMessage("Enter a valid international phone number, for example +263771234567."); setBusy(false); return; }
     try {
       const supabase = createClient();
       const { data, error } = await supabase.rpc("lookup_money_recipient_by_phone", { p_phone_e164: normalized });
@@ -31,8 +45,10 @@ export default function Home() {
     finally { setBusy(false); }
   }
 
+  if (!ready) return <main className="shell auth-shell"><section className="auth-card"><p className="eyebrow">SHADECODE · MONEY</p><h1>Checking your session…</h1><p className="subhead">Taking you to your secure workspace.</p></section></main>;
+
   return <main className="shell">
-    <nav className="nav"><div className="brand"><span className="brand-mark">S</span><span>Shadecode</span></div><div className="nav-actions"><a href="/auth">Sign in</a><a href="/account">Account</a></div></nav>
+    <nav className="nav"><div className="brand"><span className="brand-mark">S</span><span>Shadecode Money</span></div><div className="nav-actions"><a href="/account">Account</a></div></nav>
     <section className="hero"><p className="eyebrow">SHADECODE · FINANCIAL NAVIGATION</p><h1>Tell us what you want your money to do.</h1><p className="subhead">Turn the outcome into a clear plan, compare routes, and understand the trade-offs before anything moves.</p>
       <div className="composer"><textarea value={request} onChange={e => setRequest(e.target.value)} placeholder="e.g. I need Mum to receive $300" aria-label="Describe what you want your money to do" /><button disabled={!request.trim()}>Build plan <span>→</span></button></div>
       <div className="chips">{examples.map(example => <button key={example} onClick={() => setRequest(example)}>{example}</button>)}</div>

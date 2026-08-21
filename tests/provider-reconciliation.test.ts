@@ -5,63 +5,69 @@ import { InternalProviderAdapter, internalRail } from "../packages/simulator/src
 
 class ProviderEventInbox {
   private readonly events = new Map<string, { eventId: string; status: "RECEIVED" | "PROCESSED"; reference: string }>();
-  private settledReferences = new Set<string>();
-
-  ingest(event: { providerId: string; eventId: string; providerReference: string; payload: Readonly<Record<string, unknown>>; eventType: string }) {
-    const key = `${event.providerId}:${event.eventId}`;
-    const existing = this.events.get(key);
-    if (existing) return existing;
-    const row = { eventId: event.eventId, status: "RECEIVED" as const, reference: event.providerReference };
-    this.events.set(key, row);
-    return row;
-  }
+  private readonly settlementReferences = new Set<string>();
+  private readonly attemptReferences = new Set<string>();
 
   process(event: { providerId: string; eventId: string; providerReference: string; payload: Readonly<Record<string, unknown>>; eventType: string }) {
-    const row = this.ingest(event);
-    if (row.status === "PROCESSED") return { settlementApplied: false, duplicate: true };
-    const settlementApplied = event.eventType === "settled" && !this.settledReferences.has(event.providerReference);
-    if (settlementApplied) this.settledReferences.add(event.providerReference);
+    const eventKey = `${event.providerId}:${event.eventId}`;
+    const existing = this.events.get(eventKey);
+    if (existing) return { settlementApplied: false, duplicate: true };
+
+    if (this.attemptReferences.has(event.providerReference)) {
+      return { settlementApplied: false, duplicate: true, referenceCollision: true };
+    }
+
+    const row = { eventId: event.eventId, status: "RECEIVED" as const, reference: event.providerReference };
+    this.events.set(eventKey, row);
+    this.attemptReferences.add(event.providerReference);
+
+    const settlementApplied = event.eventType === "settled" && !this.settlementReferences.has(event.providerReference);
+    if (settlementApplied) this.settlementReferences.add(event.providerReference);
     row.status = "PROCESSED";
-    return { settlementApplied, duplicate: false };
+    return { settlementApplied, duplicate: false, referenceCollision: false };
   }
 
   countEvents() { return this.events.size; }
-  countSettlements() { return this.settledReferences.size; }
+  countSettlements() { return this.settlementReferences.size; }
+  countReferences() { return this.attemptReferences.size; }
 }
 
 describe("provider reconciliation integration", () => {
   it("settles once when the same webhook is delivered repeatedly", async () => {
     const adapter = new InternalProviderAdapter();
     const amount = { amount: "100", currency: "USD" };
-    const rail = internalRail();
     const result = await adapter.execute({
       settlementId: "integration-settlement-1",
-      instruction: { amount, rail, reference: "integration-1", idempotencyKey: "integration-key-1" },
+      instruction: { amount, rail: internalRail(), reference: "integration-1", idempotencyKey: "integration-key-1" },
     });
     expect(result.status).toBe("SUCCEEDED");
-    expect(result.providerReference).toBe("internal_integration-settlement-1");
-
     const payload = canonicalizeJson(result.payload);
-    const signature = `internal:${result.eventId}`;
-    expect(adapter.verifyWebhook({ eventId: result.eventId, signature, payload })).toBe(true);
+    expect(adapter.verifyWebhook({ eventId: result.eventId, signature: `internal:${result.eventId}`, payload })).toBe(true);
 
     const inbox = new ProviderEventInbox();
-    const event = {
-      providerId: result.providerId,
-      eventId: result.eventId,
-      providerReference: result.providerReference!,
-      payload: result.payload,
-      eventType: result.eventType,
-    };
-    const first = inbox.process(event);
-    const second = inbox.process(event);
-    const third = inbox.process(event);
-
-    expect(first).toEqual({ settlementApplied: true, duplicate: false });
-    expect(second).toEqual({ settlementApplied: false, duplicate: true });
-    expect(third).toEqual({ settlementApplied: false, duplicate: true });
+    const event = { providerId: result.providerId, eventId: result.eventId, providerReference: result.providerReference!, payload: result.payload, eventType: result.eventType };
+    expect(inbox.process(event)).toEqual({ settlementApplied: true, duplicate: false, referenceCollision: false });
+    expect(inbox.process(event)).toEqual({ settlementApplied: false, duplicate: true });
+    expect(inbox.process(event)).toEqual({ settlementApplied: false, duplicate: true });
     expect(inbox.countEvents()).toBe(1);
     expect(inbox.countSettlements()).toBe(1);
-    expect(createHash("sha256").update(payload).digest("hex")).toHaveLength(64);
+  });
+
+  it("rejects a different event that reuses an existing provider reference", async () => {
+    const adapter = new InternalProviderAdapter();
+    const result = await adapter.execute({
+      settlementId: "integration-settlement-2",
+      instruction: { amount: { amount: "250", currency: "USD" }, rail: internalRail(), reference: "integration-2", idempotencyKey: "integration-key-2" },
+    });
+    const inbox = new ProviderEventInbox();
+    const first = { providerId: "INTERNAL", eventId: "provider-event-1", providerReference: "provider-ref-collision", payload: { state: "SETTLED" }, eventType: "settled" };
+    const second = { providerId: "INTERNAL", eventId: "provider-event-2", providerReference: "provider-ref-collision", payload: { state: "SETTLED", settlementId: "forged-or-replayed" }, eventType: "settled" };
+    expect(inbox.process(first)).toEqual({ settlementApplied: true, duplicate: false, referenceCollision: false });
+    expect(inbox.process(second)).toEqual({ settlementApplied: false, duplicate: true, referenceCollision: true });
+    expect(inbox.countEvents()).toBe(1);
+    expect(inbox.countSettlements()).toBe(1);
+    expect(inbox.countReferences()).toBe(1);
+    expect(result.status).toBe("SUCCEEDED");
+    expect(createHash("sha256").update(canonicalizeJson(first.payload)).digest("hex")).toHaveLength(64);
   });
 });

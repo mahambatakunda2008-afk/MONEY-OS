@@ -21,9 +21,7 @@ function formatScaled(value: bigint, scale: number): string {
   if (value < 0n) throw new Error("Decimal result cannot be negative");
   const raw = value.toString().padStart(scale + 1, "0");
   if (scale === 0) return raw;
-  return `${raw.slice(0, -scale)}.${raw.slice(-scale)}`
-    .replace(/\.0+$/, "")
-    .replace(/(\.\d*?)0+$/, "$1");
+  return `${raw.slice(0, -scale)}.${raw.slice(-scale)}`;
 }
 
 export function compareDecimal(a: string, b: string): number {

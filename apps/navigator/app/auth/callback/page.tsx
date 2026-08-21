@@ -22,7 +22,8 @@ export default function AuthCallbackPage() {
         const { data, error } = await supabase.auth.getSession();
         if (error) throw error;
         if (!data.session) throw new Error("Your confirmation link has expired or is invalid. Please sign in again.");
-        router.replace("/account");
+        router.replace("/");
+        router.refresh();
       } catch (error) {
         if (active) setMessage(error instanceof Error ? error.message : "We could not complete sign-in.");
       }
@@ -30,14 +31,5 @@ export default function AuthCallbackPage() {
     return () => { active = false; };
   }, [router]);
 
-  return (
-    <main className="shell auth-shell">
-      <section className="auth-card">
-        <p className="eyebrow">SHADECODE · ACCOUNT</p>
-        <h1>{message === "Finishing sign-in…" ? "Finishing sign-in…" : "Sign-in link issue"}</h1>
-        <p className="subhead">{message}</p>
-        {message !== "Finishing sign-in…" && <a className="link-button" href="/auth">Return to sign in</a>}
-      </section>
-    </main>
-  );
+  return <main className="shell auth-shell"><section className="auth-card"><p className="eyebrow">SHADECODE · MONEY</p><h1>{message === "Finishing sign-in…" ? "Finishing sign-in…" : "Sign-in link issue"}</h1><p className="subhead">{message}</p>{message !== "Finishing sign-in…" && <a className="link-button" href="/auth">Return to sign in</a>}</section></main>;
 }

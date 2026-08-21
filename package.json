@@ -4,7 +4,10 @@
   "version": "0.1.0",
   "description": "Shadecode Money: your money, everywhere.",
   "scripts": {
+    "dev": "npm --prefix apps/navigator run dev",
     "build": "tsc -b",
+    "build:navigator": "npm --prefix apps/navigator run build",
+    "start": "npm --prefix apps/navigator run start",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -b --pretty false",

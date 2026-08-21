@@ -40,7 +40,7 @@ export class InternalProviderAdapter implements SettlementProviderAdapter {
       providerId: this.id,
       eventId: event.eventId,
       eventType: event.eventType,
-      providerReference: result.providerReference,
+      ...(result.providerReference === undefined ? {} : { providerReference: result.providerReference }),
       status: event.eventType === "settled" ? "SUCCEEDED" : event.eventType === "failed" ? "FAILED" : "PROCESSING",
       payload: event.payload,
     };
@@ -52,7 +52,14 @@ export class InternalProviderAdapter implements SettlementProviderAdapter {
 
   normalizeWebhook(input: { eventId: string; eventType: string; payload: Readonly<Record<string, unknown>>; providerReference?: string }): NormalizedProviderEvent {
     const status = input.eventType === "settled" ? "SUCCEEDED" : input.eventType === "failed" ? "FAILED" : input.eventType === "processing" ? "PROCESSING" : "UNKNOWN";
-    return { providerId: this.id, eventId: input.eventId, eventType: input.eventType, providerReference: input.providerReference, status, payload: input.payload };
+    return {
+      providerId: this.id,
+      eventId: input.eventId,
+      eventType: input.eventType,
+      ...(input.providerReference === undefined ? {} : { providerReference: input.providerReference }),
+      status,
+      payload: input.payload,
+    };
   }
 }
 

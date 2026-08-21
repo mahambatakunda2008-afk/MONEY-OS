@@ -52,7 +52,7 @@ export default function AccountPage() {
     if (!E164.test(normalized)) { setMessage("Enter a valid E.164 phone number, for example +263771234567."); return; }
     setVerifying(true); setMessage(null);
     const supabase = createClient();
-    const { data, error } = await supabase.functions.invoke("money-phone-otp-v1", { body: { action: "start", phoneE164: normalized } });
+    const { data, error } = await supabase.functions.invoke("money-phone-otp-v2", { body: { action: "start", phoneE164: normalized } });
     setVerifying(false);
     if (error || !data?.challengeId) { setMessage(error?.message ?? data?.error ?? "Verification service unavailable."); return; }
     setChallengeId(String(data.challengeId)); setOtpSent(true); setMessage("Verification challenge created. Enter the code sent to your phone when SMS delivery is configured.");
@@ -63,7 +63,7 @@ export default function AccountPage() {
     if (!challengeId || !E164.test(normalized) || !/^\d{6}$/.test(otp)) { setMessage("Enter the 6-digit verification code."); return; }
     setVerifying(true); setMessage(null);
     const supabase = createClient();
-    const { data, error } = await supabase.functions.invoke("money-phone-otp-v1", { body: { action: "verify", phoneE164: normalized, challengeId, otp } });
+    const { data, error } = await supabase.functions.invoke("money-phone-otp-v2", { body: { action: "verify", phoneE164: normalized, challengeId, otp } });
     setVerifying(false);
     if (error || !data?.verified) { setMessage(error?.message ?? data?.error ?? "Phone verification failed."); return; }
     const { data: auth } = await supabase.auth.getUser();

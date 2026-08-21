@@ -73,10 +73,13 @@ function divideDecimal(numerator: string, denominator: string): string {
   if (denominatorInteger === 0n) throw new Error("Cannot divide by zero");
 
   const precision = 18;
-  const scaledNumerator = numeratorInteger * 10n ** BigInt(df.length + precision);
+  const scale = 10n ** BigInt(precision + df.length);
+  const scaledNumerator = numeratorInteger * scale;
   const scaledDenominator = denominatorInteger * 10n ** BigInt(nf.length);
   const quotient = scaledNumerator / scaledDenominator;
-  const raw = quotient.toString().padStart(precision + 1, "0");
+  const remainder = scaledNumerator % scaledDenominator;
+  const roundedUp = remainder === 0n ? quotient : quotient + 1n;
+  const raw = roundedUp.toString().padStart(precision + 1, "0");
   const formatted = `${raw.slice(0, -precision)}.${raw.slice(-precision)}`;
   return formatted.replace(/(\.\d*?)0+$/, "$1").replace(/\.0+$/, "");
 }

@@ -9,6 +9,7 @@ export * from "./transaction";
 export * from "./coordinator";
 export * from "./supabase-money";
 export * from "./fx";
+export { assertBalanced } from "./ledger";
 
 export type MoneyAction =
   | "HOLD" | "MOVE" | "CONVERT" | "SEND" | "RECEIVE" | "PAY" | "SCHEDULE" | "SPLIT";

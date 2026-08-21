@@ -38,13 +38,14 @@ export default function DashboardPage() {
   const held = accounts.reduce((sum, a) => sum + Number(a.held_minor), 0) / 100;
 
   return <main className="shell">
-    <nav className="nav"><div className="brand"><span className="brand-mark">S</span><span>Shadecode Money</span></div><div className="nav-actions"><a href="/account">Account</a></div></nav>
+    <nav className="nav"><div className="brand"><span className="brand-mark">S</span><span>Shadecode Money</span></div><div className="nav-actions"><a href="/plans">Plans</a><a href="/account">Account</a></div></nav>
     <section className="hero"><p className="eyebrow">SHADECODE · MONEY WORKSPACE</p><h1>{profile?.display_name ? `Welcome, ${profile.display_name}.` : "Your money workspace."}</h1><p className="subhead">Plan, compare, confirm and track money movement from one place. M0.1 remains simulation-only.</p></section>
     {error && <p className="session-message" role="status">{error}</p>}
     {!profile?.phone_verified_at && <section className="preview"><div><p className="label">IDENTITY</p><h2>Verify your phone first.</h2><p className="request">Phone verification is required before your number can be used as a trusted money identifier or recipient lookup target.</p></div><a className="link-button" href="/account">Open account →</a></section>}
     <section className="preview-grid workspace-grid">
       <a className="preview tile" href="/wallet"><p className="label">WALLET</p><h2>{accounts.length} account{accounts.length === 1 ? "" : "s"}</h2><p>Available {available.toFixed(2)} · Held {held.toFixed(2)}</p><strong>Open wallet →</strong></a>
       <a className="preview tile" href="/send"><p className="label">SEND</p><h2>Prepare a transfer</h2><p>Find a verified recipient, compare routes, check balance and authorize a hold.</p><strong>Start transfer →</strong></a>
+      <a className="preview tile" href="/plans"><p className="label">PLANS</p><h2>Saved money plans</h2><p>Build routes, holds, schedules, splits and goals and keep them ready for execution.</p><strong>Open plans →</strong></a>
       <a className="preview tile" href="/transactions"><p className="label">LEDGER</p><h2>Transaction history</h2><p>Inspect your owner-scoped transaction and settlement state.</p><strong>View history →</strong></a>
       <a className="preview tile" href="/account"><p className="label">IDENTITY</p><h2>Account & phone</h2><p>Manage your display name, country and verified phone number.</p><strong>Manage identity →</strong></a>
     </section>

@@ -64,7 +64,13 @@ export class SettlementAdapterRegistry {
   ingestWebhook(input: { providerId: string; eventId: string; eventType: string; signature: string; rawPayload: string; payload: Readonly<Record<string, unknown>>; providerReference?: string }): NormalizedProviderEvent {
     const adapter = this.get(input.providerId);
     if (!adapter.verifyWebhook({ eventId: input.eventId, signature: input.signature, payload: input.rawPayload })) throw new Error("Invalid provider webhook signature");
-    const event = adapter.normalizeWebhook({ eventId: input.eventId, eventType: input.eventType, payload: input.payload, providerReference: input.providerReference });
+    const eventInput = {
+      eventId: input.eventId,
+      eventType: input.eventType,
+      payload: input.payload,
+      ...(input.providerReference === undefined ? {} : { providerReference: input.providerReference }),
+    };
+    const event = adapter.normalizeWebhook(eventInput);
     assertProviderEvent(event);
     return event;
   }

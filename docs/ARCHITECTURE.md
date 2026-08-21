@@ -1,8 +1,8 @@
-# Money OS Core Architecture
+# Shadecode Money Architecture
 
 ## System boundary
 
-M0.1 is a deterministic, simulator-first planning system. It must not move real customer funds.
+Shadecode Money is designed as a provider-agnostic money orchestration system. The customer-facing product is for real-money workflows; the simulator is developer-only infrastructure and is never a source of customer balances or settlement truth.
 
 ```text
 User
@@ -11,27 +11,39 @@ Navigator UI
   ↓
 Intent normalization
   ↓
-Validation
+Validation + identity + policy
   ↓
-Plan generation
-  ├── FX engine
-  ├── Fee engine
-  └── Route engine
+Quote / FX / fee calculation
+  ↓
+Route engine
+  ↓
+Payment Orchestrator
+  ├── Mobile money providers
+  ├── Bank providers
+  ├── Card providers
+  ├── QR / merchant providers
+  └── Future rails
           ↓
-      Money Graph
+     Provider API
           ↓
-   Risk / policy boundary
+   Signed provider webhook
           ↓
-   Provider simulator
+  Normalization + idempotency
           ↓
- Timeline + Receipt
+   Reconciliation boundary
+          ↓
+      Double-entry ledger
+          ↓
+       Wallet state
 ```
+
+Provider credentials, webhook secrets and service-role credentials are server-side only. The browser never talks directly to provider APIs and never writes authoritative financial state.
 
 ## Domain flow
 
-`MoneyIntent → MoneyPlan → MoneyExecution → MoneyTimeline → MoneyReceipt`
+`MoneyIntent → MoneyPlan → Authorization → SettlementAttempt → ProviderEvent → Reconciliation → Ledger → Receipt`
 
-One intent may create multiple plans, and one plan may contain multiple execution steps. Split operations create child intents. Schedules create future intents without directly executing them in M0.1.
+An intent may produce multiple candidate plans. A selected plan produces one or more settlement attempts. Provider events are normalized before they can affect transaction state.
 
 ## Financial primitives
 
@@ -43,25 +55,68 @@ One intent may create multiple plans, and one plan may contain multiple executio
 - PAY
 - SCHEDULE
 - SPLIT
+- REFUND
 
 ## State model
 
 ```text
-DRAFT → READY → APPROVED → EXECUTING → COMPLETED
-                         ↘ USER_ACTION_REQUIRED
-EXECUTING → FAILED → RETRY / ROUTE_SWITCH / WAIT / REFUND
+PENDING
+   ↓
+AUTHORIZED
+   ↓
+COMMITTED
+   ↓
+SETTLED
+
+AUTHORIZED → RELEASED
+AUTHORIZED → FAILED
+COMMITTED  → FAILED / REFUNDED
+FAILED     → RETRY / ROUTE_SWITCH / REFUND
 ```
 
-State transitions must be explicit and validated. UI code must not mutate financial state directly.
+Every transition is explicit and validated. UI code cannot mutate financial state directly.
 
-## Calculation rule
+## Provider orchestration
 
-All authoritative money calculations have one source of truth. Amounts must use decimal-safe arithmetic, never ordinary binary floating-point arithmetic for financial results.
+`PaymentOrchestrator` selects an eligible rail and dispatches a `PaymentInstruction` to a registered provider adapter. `SettlementAdapterRegistry` verifies webhook signatures and converts provider-specific payloads into a normalized `NormalizedProviderEvent`.
 
-## Provider abstraction
+Providers are intentionally adapters. Adding another provider must not require rewriting the Send UI, wallet accounting or transaction state machine.
 
-The core engine knows provider capabilities, quotes, limits, routes, and status through interfaces. The simulator implements those interfaces in M0.1. Real provider adapters are a later phase and must sit behind the same boundary.
+## Multi-provider routing
+
+The route engine considers:
+
+- country
+- currency
+- operation capability
+- provider availability
+- fees
+- FX
+- reliability
+- limits
+- risk policy
+- customer/provider eligibility
+
+The initial rail model already supports BANK, CARD, MOBILE_MONEY, QR, CASH and OTHER rail types. citeturn225file0
+
+## Reconciliation
+
+A provider saying `SUCCESS` is not itself a ledger mutation. Shadecode must verify the event, enforce idempotency, match it to the settlement/transaction, validate the amount/currency/reference, and only then apply the authoritative ledger transition.
+
+## Simulation
+
+The existing simulator package remains useful for automated tests and developer workflows, but it is not exposed as the production money source. The simulator is separated from the core provider boundary so production adapters can use the same contracts without pretending simulated money is real.
+
+## Security boundary
+
+- provider secrets: server-side only
+- webhook secrets: server-side only
+- Supabase service-role key: server-side only
+- publishable Supabase key: browser-safe
+- idempotency: mandatory for money mutations
+- webhook signatures: mandatory before reconciliation
+- ledger mutations: server/database boundary only
 
 ## AI boundary
 
-AI can convert natural-language requests into candidate intent data and explain deterministic results. It cannot be the source of truth for rates, fees, balances, limits, authorization, execution state, or settlement.
+AI can convert natural-language requests into candidate intent data and explain deterministic results. It cannot be the source of truth for balances, rates, fees, limits, authorization, provider events, execution state or settlement.

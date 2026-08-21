@@ -2,8 +2,14 @@ import { describe, expect, it } from "vitest";
 import { beginMoneyTransaction, commitMoneyTransaction, createMoneyAccount, releaseMoneyTransaction, type SupabaseRpcClient } from "./supabase-money";
 
 type Call = { name: string; args: Record<string, unknown> };
+type Rpc = SupabaseRpcClient["rpc"];
+
 function fakeClient(result: unknown, calls: Call[]): SupabaseRpcClient {
-  return { async rpc<T>(name, args) { calls.push({ name, args }); return { data: result as T, error: null }; } };
+  const rpc: Rpc = async <T>(name: string, args: Record<string, unknown>) => {
+    calls.push({ name, args });
+    return { data: result as T, error: null };
+  };
+  return { rpc };
 }
 
 function lastCall(calls: Call[], index: number): Call {
@@ -31,7 +37,7 @@ describe("Supabase money RPC adapter", () => {
     expect(lastCall(calls, 1).args).toEqual({ p_transaction_id: "tx-1" });
   });
   it("surfaces RPC errors", async () => {
-    const client: SupabaseRpcClient = { async rpc() { return { data: null, error: { message: "Insufficient available balance" } }; } };
+    const client: SupabaseRpcClient = { async rpc<T>(_name: string, _args: Record<string, unknown>) { return { data: null as T | null, error: { message: "Insufficient available balance" } }; } };
     await expect(createMoneyAccount(client, "USD")).rejects.toThrow("Insufficient available balance");
   });
 });

@@ -64,6 +64,8 @@ export function buildRecipientQuote(input: RecipientQuoteInput): RecipientQuoteR
 }
 
 function divideDecimalCeil(numerator: string, denominator: string): string {
+  assertDecimal(numerator);
+  assertDecimal(denominator);
   const [ni = "0", nf = ""] = numerator.split(".");
   const [di = "0", df = ""] = denominator.split(".");
   const numeratorInteger = BigInt(ni + nf);
@@ -71,14 +73,10 @@ function divideDecimalCeil(numerator: string, denominator: string): string {
   if (denominatorInteger === 0n) throw new Error("Cannot divide by zero");
 
   const precision = 18;
-  const scale = precision + df.length - nf.length;
-  const scaledNumerator = numeratorInteger * 10n ** BigInt(Math.max(scale, 0));
-  const scaledDenominator = denominatorInteger * 10n ** BigInt(Math.max(-scale, 0));
-  const factor = 10n ** BigInt(precision);
-  const scaled = scaledNumerator * factor;
-  const quotient = (scaled + scaledDenominator - 1n) / scaledDenominator;
+  const scaledNumerator = numeratorInteger * 10n ** BigInt(df.length + precision);
+  const scaledDenominator = denominatorInteger * 10n ** BigInt(nf.length);
+  const quotient = (scaledNumerator + scaledDenominator - 1n) / scaledDenominator;
   const raw = quotient.toString().padStart(precision + 1, "0");
-  return `${raw.slice(0, -precision)}.${raw.slice(-precision)}`
-    .replace(/\.0+$/, "")
-    .replace(/(\.\d*?)0+$/, "$1");
+  const formatted = `${raw.slice(0, -precision)}.${raw.slice(-precision)}`;
+  return formatted.replace(/(\.\d*?)0+$/, "$1").replace(/\.0+$/, "");
 }

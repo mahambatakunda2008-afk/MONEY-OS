@@ -5,6 +5,7 @@ export * from "./rails";
 export * from "./providers";
 export * from "./provider-contract";
 export * from "./provider-orchestrator";
+export * from "./payout-providers";
 export * from "./execution";
 export * from "./transaction";
 export * from "./coordinator";

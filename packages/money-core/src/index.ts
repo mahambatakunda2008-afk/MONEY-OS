@@ -7,6 +7,7 @@ export * from "./provider-contract";
 export * from "./provider-orchestrator";
 export * from "./payout-providers";
 export * from "./payout-providers/paynow-disbursement";
+export * from "./payout-providers/linkwa";
 export * from "./payout-router";
 export * from "./execution";
 export * from "./transaction";
